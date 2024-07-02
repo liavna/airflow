@@ -38,6 +38,8 @@ def fetch_air_quality_data():
 with DAG(
     'air_quality_dag',
     default_args=default_args,
+    description='A DAG to fetch and process air quality data for Shanghai',
+    schedule_interval=timedelta(days=1),
     access_control={
 		'All': {
 			'can_read',
@@ -45,8 +47,6 @@ with DAG(
 			'can_delete'
 		}
 	}
-    description='A DAG to fetch and process air quality data for Shanghai',
-    schedule_interval=timedelta(days=1),
 ) as dag:
 
     fetch_data_task = PythonOperator(
