@@ -13,6 +13,13 @@ default_args = {
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
 }
+access_control={
+		'All': {
+			'can_read',
+			'can_edit',
+			'can_delete'
+		}
+	}
 
 def fetch_air_quality_data():
     url = "http://api.waqi.info/feed/shanghai/?token=c729941b2543bf33457af3f9a56069bafd457218"
