@@ -28,6 +28,9 @@ def fetch_air_quality_data():
         dominant_pollutant = data["data"]["dominentpol"]
         iaqi = data["data"]["iaqi"]
         
+        # Convert timestamp to the correct format
+        timestamp = datetime.fromisoformat(timestamp[:-1]).strftime('%Y-%m-%d %H:%M:%S')
+        
         # Flatten IAQI values
         co = iaqi.get("co", {}).get("v", None)
         h = iaqi.get("h", {}).get("v", None)
