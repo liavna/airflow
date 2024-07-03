@@ -15,6 +15,15 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
+def parse_iso_timestamp(timestamp):
+    try:
+        # Attempt to parse ISO 8601 format
+        parsed_time = datetime.fromisoformat(timestamp[:-1]).strftime('%Y-%m-%d %H:%M:%S')
+    except ValueError:
+        # Handle cases where the timestamp format is unexpected
+        parsed_time = None
+    return parsed_time
+
 def fetch_air_quality_data():
     url = "http://api.waqi.info/feed/shanghai/?token=c729941b2543bf33457af3f9a56069bafd457218"
     response = requests.get(url)
@@ -29,7 +38,10 @@ def fetch_air_quality_data():
         iaqi = data["data"]["iaqi"]
         
         # Convert timestamp to the correct format
-        timestamp = datetime.fromisoformat(timestamp[:-1]).strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = parse_iso_timestamp(timestamp)
+        
+        if timestamp is None:
+            raise ValueError("Invalid timestamp format received from API")
         
         # Flatten IAQI values
         co = iaqi.get("co", {}).get("v", None)
