@@ -42,7 +42,7 @@ def fetch_air_quality_data():
         
         # Connect to the MariaDB database
         conn = mysql.connector.connect(
-            host="10.150.104.198/",
+            host="10.150.104.198",
             user="root",
             password="HPEpassword!",
             database="air_quality_db"
