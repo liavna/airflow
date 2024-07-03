@@ -107,6 +107,13 @@ with DAG(
     default_args=default_args,
     description='A DAG to fetch and process air quality data for multiple cities',
     schedule_interval=timedelta(days=1),
+    access_control={
+		'role_<username>': {
+			'can_read',
+			'can_edit',
+			'can_delete'
+		}
+	}
 ) as dag:
     
     cities = ["Shanghai", "Israel", "New York", "French", "London", "Hong Kong"]
