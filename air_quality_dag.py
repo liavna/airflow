@@ -27,7 +27,7 @@ def check_and_save_data():
     
     if data["status"] == "ok":
         # Extract necessary data
-        timestamp = parser.isoparse(data["data"]["time"]["iso"])
+        timestamp = parser.isoparse(data["data"]["time"]["iso"]).strftime('%Y-%m-%d %H:%M:%S')
         aqi = data["data"]["aqi"]
         dominant_pollutant = data["data"]["dominentpol"]
         iaqi = json.dumps(data["data"]["iaqi"])
