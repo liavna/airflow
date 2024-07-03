@@ -24,14 +24,28 @@ def parse_custom_timestamp(timestamp):
         print(f"Error parsing timestamp: {e}")
     return parsed_time
 
-def fetch_air_quality_data():
-    url = "http://api.waqi.info/feed/shanghai/?token=c729941b2543bf33457af3f9a56069bafd457218"
+def fetch_air_quality_data(city):
+    token = "c729941b2543bf33457af3f9a56069bafd457218"
+    city_map = {
+        "Shanghai": "shanghai",
+        "Israel": "israel",
+        "New York": "new-york",
+        "French": "paris",
+        "London": "london",
+        "Hong Kong": "hongkong"
+    }
+    
+    city_url_part = city_map.get(city)
+    if not city_url_part:
+        raise ValueError(f"City '{city}' is not mapped to a valid URL part.")
+    
+    url = f"http://api.waqi.info/feed/{city_url_part}/?token={token}"
     response = requests.get(url)
     data = response.json()
     
     if data["status"] == "ok":
         # Extract data
-        city = data["data"]["city"]["name"]
+        city_name = data["data"]["city"]["name"]
         latitude = data["data"]["city"]["geo"][0]
         longitude = data["data"]["city"]["geo"][1]
         timestamp = data["data"]["time"]["iso"]
@@ -71,7 +85,7 @@ def fetch_air_quality_data():
         SELECT COUNT(*) FROM air_quality_data
         WHERE timestamp = %s AND city = %s
         """
-        cursor.execute(query, (timestamp, city))
+        cursor.execute(query, (timestamp, city_name))
         count = cursor.fetchone()[0]
         
         if count == 0:
@@ -80,7 +94,7 @@ def fetch_air_quality_data():
             INSERT INTO air_quality_data (city, latitude, longitude, aqi, dominant_pollutant, co, h, no2, o3, p, pm10, pm25, so2, t, w, timestamp)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
-            cursor.execute(insert_query, (city, latitude, longitude, aqi, dominant_pollutant, co, h, no2, o3, p, pm10, pm25, so2, t, w, timestamp))
+            cursor.execute(insert_query, (city_name, latitude, longitude, aqi, dominant_pollutant, co, h, no2, o3, p, pm10, pm25, so2, t, w, timestamp))
             conn.commit()
         
         cursor.close()
@@ -91,20 +105,15 @@ def fetch_air_quality_data():
 with DAG(
     'air_quality_dag',
     default_args=default_args,
-    description='A DAG to fetch and process air quality data for Shanghai',
+    description='A DAG to fetch and process air quality data for multiple cities',
     schedule_interval=timedelta(days=1),
-    access_control={
-		'role_<username>': {
-			'can_read',
-			'can_edit',
-			'can_delete'
-		}
-	}
 ) as dag:
-
-    fetch_data_task = PythonOperator(
-        task_id='fetch_air_quality_data',
-        python_callable=fetch_air_quality_data,
-    )
-
-    fetch_data_task
+    
+    cities = ["Shanghai", "Israel", "New York", "French", "London", "Hong Kong"]
+    
+    for city in cities:
+        fetch_data_task = PythonOperator(
+            task_id=f'fetch_air_quality_data_{city.replace(" ", "_")}',
+            python_callable=fetch_air_quality_data,
+            op_args=[city],
+        )
