@@ -2,7 +2,6 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
 import requests
-import json
 import mysql.connector
 
 default_args = {
@@ -37,6 +36,8 @@ def fetch_air_quality_data():
         aqi = data["data"]["aqi"]
         dominant_pollutant = data["data"]["dominentpol"]
         iaqi = data["data"]["iaqi"]
+        latitude = data["data"]["city"]["geo"][0]
+        longitude = data["data"]["city"]["geo"][1]
         
         # Convert timestamp to the correct format
         timestamp = parse_custom_timestamp(timestamp)
@@ -76,10 +77,10 @@ def fetch_air_quality_data():
         if count == 0:
             # Insert new data
             insert_query = """
-            INSERT INTO air_quality_data (city, aqi, dominant_pollutant, co, h, no2, o3, p, pm10, pm25, so2, t, w, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO air_quality_data (city, aqi, dominant_pollutant, co, h, no2, o3, p, pm10, pm25, so2, t, w, timestamp, latitude, longitude)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
-            cursor.execute(insert_query, (city, aqi, dominant_pollutant, co, h, no2, o3, p, pm10, pm25, so2, t, w, timestamp))
+            cursor.execute(insert_query, (city, aqi, dominant_pollutant, co, h, no2, o3, p, pm10, pm25, so2, t, w, timestamp, latitude, longitude))
             conn.commit()
         
         cursor.close()
