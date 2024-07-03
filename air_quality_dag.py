@@ -42,9 +42,9 @@ def fetch_air_quality_data():
         
         # Connect to the MariaDB database
         conn = mysql.connector.connect(
-            host="your_mariadb_host",
-            user="your_mariadb_user",
-            password="your_mariadb_password",
+            host="10.150.104.198/",
+            user="root",
+            password="HPEpassword!",
             database="air_quality_db"
         )
         cursor = conn.cursor()
@@ -76,6 +76,13 @@ with DAG(
     default_args=default_args,
     description='A DAG to fetch and process air quality data for Shanghai',
     schedule_interval=timedelta(days=1),
+    access_control={
+		'role_<username>': {
+			'can_read',
+			'can_edit',
+			'can_delete'
+		}
+	}
 ) as dag:
 
     fetch_data_task = PythonOperator(
