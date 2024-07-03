@@ -15,13 +15,14 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-def parse_iso_timestamp(timestamp):
+def parse_custom_timestamp(timestamp):
     try:
-        # Attempt to parse ISO 8601 format
-        parsed_time = datetime.fromisoformat(timestamp[:-1]).strftime('%Y-%m-%d %H:%M:%S')
-    except ValueError:
+        # Assuming the timestamp format is 'YYYY-MM-DDTHH:MM:SS+HH:MM'
+        parsed_time = datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%S%z').strftime('%Y-%m-%d %H:%M:%S')
+    except ValueError as e:
         # Handle cases where the timestamp format is unexpected
         parsed_time = None
+        print(f"Error parsing timestamp: {e}")
     return parsed_time
 
 def fetch_air_quality_data():
@@ -38,7 +39,7 @@ def fetch_air_quality_data():
         iaqi = data["data"]["iaqi"]
         
         # Convert timestamp to the correct format
-        timestamp = parse_iso_timestamp(timestamp)
+        timestamp = parse_custom_timestamp(timestamp)
         
         if timestamp is None:
             raise ValueError("Invalid timestamp format received from API")
@@ -91,13 +92,6 @@ with DAG(
     default_args=default_args,
     description='A DAG to fetch and process air quality data for Shanghai',
     schedule_interval=timedelta(days=1),
-    access_control={
-		'role_<username>': {
-			'can_read',
-			'can_edit',
-			'can_delete'
-		}
-	}
 ) as dag:
 
     fetch_data_task = PythonOperator(
