@@ -32,12 +32,12 @@ def fetch_air_quality_data():
     if data["status"] == "ok":
         # Extract data
         city = data["data"]["city"]["name"]
+        latitude = data["data"]["city"]["geo"][0]
+        longitude = data["data"]["city"]["geo"][1]
         timestamp = data["data"]["time"]["iso"]
         aqi = data["data"]["aqi"]
         dominant_pollutant = data["data"]["dominentpol"]
         iaqi = data["data"]["iaqi"]
-        latitude = data["data"]["city"]["geo"][0]
-        longitude = data["data"]["city"]["geo"][1]
         
         # Convert timestamp to the correct format
         timestamp = parse_custom_timestamp(timestamp)
@@ -77,10 +77,10 @@ def fetch_air_quality_data():
         if count == 0:
             # Insert new data
             insert_query = """
-            INSERT INTO air_quality_data (city, aqi, dominant_pollutant, co, h, no2, o3, p, pm10, pm25, so2, t, w, timestamp, latitude, longitude)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO air_quality_data (city, latitude, longitude, aqi, dominant_pollutant, co, h, no2, o3, p, pm10, pm25, so2, t, w, timestamp)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
-            cursor.execute(insert_query, (city, aqi, dominant_pollutant, co, h, no2, o3, p, pm10, pm25, so2, t, w, timestamp, latitude, longitude))
+            cursor.execute(insert_query, (city, latitude, longitude, aqi, dominant_pollutant, co, h, no2, o3, p, pm10, pm25, so2, t, w, timestamp))
             conn.commit()
         
         cursor.close()
@@ -93,13 +93,6 @@ with DAG(
     default_args=default_args,
     description='A DAG to fetch and process air quality data for Shanghai',
     schedule_interval=timedelta(days=1),
-    access_control={
-		'role_<username>': {
-			'can_read',
-			'can_edit',
-			'can_delete'
-		}
-	}
 ) as dag:
 
     fetch_data_task = PythonOperator(
