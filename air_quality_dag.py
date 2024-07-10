@@ -106,14 +106,14 @@ with DAG(
     'air_quality_dag',
     default_args=default_args,
     description='A DAG to fetch and process air quality data for multiple cities',
-    schedule_interval=timedelta(days=1),
+    schedule_interval='0 7,19 * * *',  # Run at 7 AM and 7 PM every day
     access_control={
-		'role_<username>': {
-			'can_read',
-			'can_edit',
-			'can_delete'
-		}
-	}
+        'role_<username>': {
+            'can_read',
+            'can_edit',
+            'can_delete'
+        }
+    }
 ) as dag:
     
     cities = ["Shanghai", "Israel", "New York", "French", "London", "Hong Kong"]
