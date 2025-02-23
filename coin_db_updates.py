@@ -7,7 +7,6 @@ import pandas as pd
 import mysql.connector
 import teradatasql
 
-
 def extract_data_from_teradata():
     teradata_conn = teradatasql.connect(host='10.150.104.171', user='dbc', password='dbc')
     cursor = teradata_conn.cursor()
@@ -35,39 +34,68 @@ def extract_data_from_teradata():
     return data_dict
 
 
-def load_data_to_mysql(data_dict):
-    # Connect to MySQL without specifying the database initially
+def ensure_database_exists():
+    """Check if CryptoDB exists on MySQL server at 10.150.104.187, create it if not."""
     mysql_conn = mysql.connector.connect(
         host='10.150.104.187', user='root', password='HPEpassword!'
     )
     cursor = mysql_conn.cursor()
 
     try:
-        # Check user privileges and attempt to create database if it does not exist
-        try:
-            cursor.execute("CREATE DATABASE IF NOT EXISTS CryptoDB")
-            mysql_conn.commit()
-        except mysql.connector.Error as err:
-            print(f"Failed creating database: {err}")
-            raise
+        cursor.execute("SHOW DATABASES LIKE 'CryptoDB'")
+        db_exists = cursor.fetchone()
+        if not db_exists:
+            try:
+                cursor.execute("CREATE DATABASE CryptoDB")
+                mysql_conn.commit()
+                print("Database 'CryptoDB' created successfully on 10.150.104.187.")
+            except mysql.connector.Error as err:
+                print(f"Failed creating database: {err}")
+                raise
+        else:
+            print("Database 'CryptoDB' already exists on 10.150.104.187.")
 
-        cursor.execute("USE CryptoDB")
+    finally:
+        cursor.close()
+        mysql_conn.close()
 
+
+def load_data_to_mysql(data_dict):
+    ensure_database_exists()
+
+    mysql_conn = mysql.connector.connect(
+        host='10.150.104.187', user='root', password='HPEpassword!', database='CryptoDB'
+    )
+    cursor = mysql_conn.cursor()
+
+    try:
+        # Create tables and insert data
         for table_name, df in data_dict.items():
             cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
             table_exists = cursor.fetchone()
 
             if not table_exists:
                 columns = ", ".join([f"`{col}` TEXT" for col in df.columns])
-                cursor.execute(f"CREATE TABLE {table_name} ({columns})")
-                mysql_conn.commit()
+                try:
+                    cursor.execute(f"CREATE TABLE {table_name} ({columns})")
+                    mysql_conn.commit()
+                    print(f"Table '{table_name}' created successfully.")
+                except mysql.connector.Error as err:
+                    print(f"Failed creating table {table_name}: {err}")
+                    raise
+            else:
+                print(f"Table '{table_name}' already exists.")
 
             for _, row in df.iterrows():
                 placeholders = ", ".join(["%s"] * len(row))
-                cursor.execute(
-                    f"INSERT INTO {table_name} VALUES ({placeholders})",
-                    tuple(row)
-                )
+                try:
+                    cursor.execute(
+                        f"INSERT INTO {table_name} VALUES ({placeholders})",
+                        tuple(row)
+                    )
+                except mysql.connector.Error as err:
+                    print(f"Failed inserting data into {table_name}: {err}")
+                    raise
         mysql_conn.commit()
 
     finally:
