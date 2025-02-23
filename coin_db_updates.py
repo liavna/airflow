@@ -41,33 +41,31 @@ def load_data_to_mysql(data_dict):
     )
     cursor = mysql_conn.cursor()
 
-    cursor.execute("SHOW DATABASES LIKE 'CryptoDB'")
-    db_exists = cursor.fetchone()
+    try:
+        cursor.execute("CREATE DATABASE IF NOT EXISTS CryptoDB")
+        mysql_conn.commit()
+        cursor.execute("USE CryptoDB")
 
-    if not db_exists:
-        cursor.execute("CREATE DATABASE CryptoDB")
+        for table_name, df in data_dict.items():
+            cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
+            table_exists = cursor.fetchone()
+
+            if not table_exists:
+                columns = ", ".join([f"`{col}` TEXT" for col in df.columns])
+                cursor.execute(f"CREATE TABLE {table_name} ({columns})")
+                mysql_conn.commit()
+
+            for _, row in df.iterrows():
+                placeholders = ", ".join(["%s"] * len(row))
+                cursor.execute(
+                    f"INSERT INTO {table_name} VALUES ({placeholders})",
+                    tuple(row)
+                )
         mysql_conn.commit()
 
-    cursor.execute("USE CryptoDB")
-
-    for table_name, df in data_dict.items():
-        cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
-        table_exists = cursor.fetchone()
-
-        if not table_exists:
-            columns = ", ".join([f"`{col}` TEXT" for col in df.columns])
-            cursor.execute(f"CREATE TABLE {table_name} ({columns})")
-            mysql_conn.commit()
-
-        for _, row in df.iterrows():
-            placeholders = ", ".join(["%s"] * len(row))
-            cursor.execute(
-                f"INSERT INTO {table_name} VALUES ({placeholders})",
-                tuple(row)
-            )
-    mysql_conn.commit()
-    cursor.close()
-    mysql_conn.close()
+    finally:
+        cursor.close()
+        mysql_conn.close()
 
 
 def sync_teradata_to_mysql():
