@@ -35,7 +35,11 @@ def extract_data_from_teradata():
 
 
 def ensure_database_exists():
-    """Check if CryptoDB exists on MySQL server at 10.150.104.187, create it if not."""
+    """
+    Check if CryptoDB exists on MySQL server at 10.150.104.187, create it if not.
+    This line previously caused an access denied error. You may need to GRANT appropriate privileges in MySQL
+    for the connecting user or adjust connection parameters to a user with required permissions.
+    """
     try:
         mysql_conn = mysql.connector.connect(
             host='10.150.104.187', user='root', password='HPEpassword!'
@@ -47,12 +51,13 @@ def ensure_database_exists():
         if not db_exists:
             print("Database 'CryptoDB' does not exist on 10.150.104.187. Attempting to create it...")
             try:
+                # Ensure the user has CREATE DATABASE privileges before executing this line
                 cursor.execute("CREATE DATABASE CryptoDB")
                 mysql_conn.commit()
                 print("Database 'CryptoDB' created successfully on 10.150.104.187.")
             except mysql.connector.Error as err:
                 print(f"Failed creating database: {err}")
-                print("Please ensure that the user 'root'@'10.150.104.183' has the required privileges.")
+                print("Ensure that the user 'root'@'10.150.104.183' has the required CREATE DATABASE privileges or modify the connection user.")
                 raise
         else:
             print("Database 'CryptoDB' already exists on 10.150.104.187.")
