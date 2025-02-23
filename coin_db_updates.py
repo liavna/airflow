@@ -36,28 +36,36 @@ def extract_data_from_teradata():
 
 def ensure_database_exists():
     """Check if CryptoDB exists on MySQL server at 10.150.104.187, create it if not."""
-    mysql_conn = mysql.connector.connect(
-        host='10.150.104.187', user='root', password='HPEpassword!'
-    )
-    cursor = mysql_conn.cursor()
-
     try:
+        mysql_conn = mysql.connector.connect(
+            host='10.150.104.187', user='root', password='HPEpassword!'
+        )
+        cursor = mysql_conn.cursor()
+
         cursor.execute("SHOW DATABASES LIKE 'CryptoDB'")
         db_exists = cursor.fetchone()
         if not db_exists:
+            print("Database 'CryptoDB' does not exist on 10.150.104.187. Attempting to create it...")
             try:
                 cursor.execute("CREATE DATABASE CryptoDB")
                 mysql_conn.commit()
                 print("Database 'CryptoDB' created successfully on 10.150.104.187.")
             except mysql.connector.Error as err:
                 print(f"Failed creating database: {err}")
+                print("Please ensure that the user 'root'@'10.150.104.183' has the required privileges.")
                 raise
         else:
             print("Database 'CryptoDB' already exists on 10.150.104.187.")
 
+    except mysql.connector.Error as conn_err:
+        print(f"MySQL connection failed: {conn_err}")
+        raise
+
     finally:
-        cursor.close()
-        mysql_conn.close()
+        if 'cursor' in locals():
+            cursor.close()
+        if 'mysql_conn' in locals() and mysql_conn.is_connected():
+            mysql_conn.close()
 
 
 def load_data_to_mysql(data_dict):
