@@ -36,14 +36,21 @@ def extract_data_from_teradata():
 
 
 def load_data_to_mysql(data_dict):
+    # Connect to MySQL without specifying the database initially
     mysql_conn = mysql.connector.connect(
         host='10.150.104.187', user='root', password='HPEpassword!'
     )
     cursor = mysql_conn.cursor()
 
     try:
-        cursor.execute("CREATE DATABASE IF NOT EXISTS CryptoDB")
-        mysql_conn.commit()
+        # Check user privileges and attempt to create database if it does not exist
+        try:
+            cursor.execute("CREATE DATABASE IF NOT EXISTS CryptoDB")
+            mysql_conn.commit()
+        except mysql.connector.Error as err:
+            print(f"Failed creating database: {err}")
+            raise
+
         cursor.execute("USE CryptoDB")
 
         for table_name, df in data_dict.items():
