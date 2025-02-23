@@ -22,7 +22,7 @@ def parse_custom_timestamp(timestamp):
         # Handle cases where the timestamp format is unexpected
         parsed_time = None
         print(f"Error parsing timestamp: {e}")
-    return parsed_time
+    return parsed_time 
 
 def fetch_air_quality_data(city):
     token = "c729941b2543bf33457af3f9a56069bafd457218"
