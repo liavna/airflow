@@ -1,7 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
-from airflow.utils.dag_parsing import get_parsed_dags
 from airflow.models import Variable
 from datetime import datetime
 import pandas as pd
