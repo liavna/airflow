@@ -36,9 +36,8 @@ def extract_data_from_teradata():
 
 def ensure_database_exists():
     """
-    Check if CryptoDB exists on MySQL server at 10.150.104.187, create it if not.
-    This line previously caused an access denied error. You may need to GRANT appropriate privileges in MySQL
-    for the connecting user or adjust connection parameters to a user with required permissions.
+    Check if CryptoDB exists on MySQL server at 10.150.104.187 before attempting to create it.
+    If it doesn't exist, attempt to create it.
     """
     try:
         mysql_conn = mysql.connector.connect(
@@ -46,21 +45,21 @@ def ensure_database_exists():
         )
         cursor = mysql_conn.cursor()
 
+        print("Checking if database 'CryptoDB' exists on 10.150.104.187...")
         cursor.execute("SHOW DATABASES LIKE 'CryptoDB'")
         db_exists = cursor.fetchone()
-        if not db_exists:
-            print("Database 'CryptoDB' does not exist on 10.150.104.187. Attempting to create it...")
+        if db_exists:
+            print("Database 'CryptoDB' already exists on 10.150.104.187.")
+        else:
+            print("Database 'CryptoDB' does not exist. Attempting to create it...")
             try:
-                # Ensure the user has CREATE DATABASE privileges before executing this line
                 cursor.execute("CREATE DATABASE CryptoDB")
                 mysql_conn.commit()
                 print("Database 'CryptoDB' created successfully on 10.150.104.187.")
             except mysql.connector.Error as err:
                 print(f"Failed creating database: {err}")
-                print("Ensure that the user 'root'@'10.150.104.183' has the required CREATE DATABASE privileges or modify the connection user.")
+                print("Ensure that the user 'root'@'10.150.104.183' has the required CREATE DATABASE privileges.")
                 raise
-        else:
-            print("Database 'CryptoDB' already exists on 10.150.104.187.")
 
     except mysql.connector.Error as conn_err:
         print(f"MySQL connection failed: {conn_err}")
