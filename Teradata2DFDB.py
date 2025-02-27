@@ -47,6 +47,16 @@ def transfer_crypto_prices():
     mapr_table_path = f"/mapr/{mapr_db_name}/{mapr_table}"
     unique_date_column = "last_updated"
 
+    # Authenticate with MapR using maprlogin
+    print("🔑 Authenticating with MapR using maprlogin...")
+    try:
+        auth_cmd = f"echo 'HPEpassword!' | /opt/mapr/bin/maprlogin password -user mapr"
+        subprocess.run(auth_cmd, shell=True, check=True)
+        print("✅ Successfully authenticated with MapR.")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ MapR authentication failed: {e}")
+        return  # Exit function if authentication fails
+
     # 1. Connect to Teradata and fetch data
     print("Connecting to Teradata...")
     try:
@@ -66,26 +76,41 @@ def transfer_crypto_prices():
         print(f"❌ Error connecting to Teradata: {e}")
         return  # Exit function on failure
 
-    # 2. Check if MapR-DB table exists
+    # 2. Check if MapR-DB table exists using full path
     def check_table_exists():
-        result = subprocess.run(["maprcli", "table", "info", "-path", mapr_table_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        return "No such table" not in result.stderr
+        try:
+            result = subprocess.run(["/opt/mapr/bin/maprcli", "table", "info", "-path", mapr_table_path], 
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+            return "No such table" not in result.stderr
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Error checking MapR-DB table: {e}")
+            return False
 
     # 3. Create table if it doesn't exist
     if not check_table_exists():
         print(f"ℹ️ Table {mapr_table} does not exist. Creating...")
-        create_table_cmd = ["maprcli", "table", "create", "-path", mapr_table_path, "-tabletype", "json"]
-        subprocess.run(create_table_cmd, check=True)
+        try:
+            create_table_cmd = ["/opt/mapr/bin/maprcli", "table", "create", "-path", mapr_table_path, "-tabletype", "json"]
+            subprocess.run(create_table_cmd, check=True)
+            print(f"✅ Table {mapr_table} created successfully.")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to create MapR-DB table: {e}")
+            return
     else:
         print(f"✅ Table {mapr_table} already exists.")
 
     # 4. Fetch existing data from MapR-DB
     print("Fetching existing data from MapR-DB...")
-    fetch_existing_cmd = f"mapr dbshell -c 'find {mapr_table_path} --f json'"
-    result = subprocess.run(fetch_existing_cmd, shell=True, capture_output=True, text=True)
+    try:
+        fetch_existing_cmd = f"/opt/mapr/bin/mapr dbshell -c 'find {mapr_table_path} --f json'"
+        result = subprocess.run(fetch_existing_cmd, shell=True, capture_output=True, text=True, check=True)
 
-    existing_data = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
-    existing_df = pd.DataFrame(existing_data)
+        existing_data = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+        existing_df = pd.DataFrame(existing_data)
+        print(f"✅ Fetched {len(existing_df)} existing records from MapR-DB.")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Failed to fetch existing data from MapR-DB: {e}")
+        existing_df = pd.DataFrame()
 
     # 5. Identify new rows using last_updated column
     if unique_date_column in df.columns and not existing_df.empty:
@@ -98,7 +123,7 @@ def transfer_crypto_prices():
         for i in range(0, len(df), batch_size):
             batch_df = df.iloc[i:i+batch_size]
             json_docs = "\n".join([json.dumps(row.to_dict()) for _, row in batch_df.iterrows()])
-            insert_cmd = f"echo '{json_docs}' | mapr dbshell -c 'insert into {mapr_table_path}'"
+            insert_cmd = f"echo '{json_docs}' | /opt/mapr/bin/mapr dbshell -c 'insert into {mapr_table_path}'"
             os.system(insert_cmd)
         print("✅ Data transfer complete.")
     else:
