@@ -142,7 +142,7 @@ with DAG(
 
     sync_task = PythonOperator(
         task_id='test',
-        python_callable=sync_teradata_to_mysql
+        python_callable=test
     )
 
     sync_task
