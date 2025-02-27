@@ -134,7 +134,7 @@ define_access_control = {
 with DAG(
     'teradata_to_mysql_sync',
     default_args=default_args,
-    description='Sync all tables from Teradata CryptoDB to MySQL',
+    description='test',
     schedule_interval='@daily',
     catchup=False,
     access_control=define_access_control
