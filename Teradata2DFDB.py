@@ -51,13 +51,20 @@ def transfer_crypto_prices():
     print("Connecting to Teradata...")
     try:
         conn = teradatasql.connect(host=teradata_host, user=teradata_user, password=teradata_password)
-        query = f"SELECT * FROM {teradata_db}.{teradata_table};"
-        df = pd.read_sql(query, conn)
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM {teradata_db}.{teradata_table};")
+        
+        # Fetch all rows and convert to DataFrame manually
+        columns = [desc[0] for desc in cur.description]  # Extract column names
+        data = cur.fetchall()
+        df = pd.DataFrame(data, columns=columns)
+
+        cur.close()
         conn.close()
-        print(f"Fetched {len(df)} rows from Teradata.")
+        print(f"✅ Fetched {len(df)} rows from Teradata.")
     except Exception as e:
-        print(f" Error connecting to Teradata: {e}")
-        return  # Exit the function on failure
+        print(f"❌ Error connecting to Teradata: {e}")
+        return  # Exit function on failure
 
     # 2. Check if MapR-DB table exists
     def check_table_exists():
@@ -66,11 +73,11 @@ def transfer_crypto_prices():
 
     # 3. Create table if it doesn't exist
     if not check_table_exists():
-        print(f" Table {mapr_table} does not exist. Creating...")
+        print(f"ℹ️ Table {mapr_table} does not exist. Creating...")
         create_table_cmd = ["maprcli", "table", "create", "-path", mapr_table_path, "-tabletype", "json"]
         subprocess.run(create_table_cmd, check=True)
     else:
-        print(f" Table {mapr_table} already exists.")
+        print(f"✅ Table {mapr_table} already exists.")
 
     # 4. Fetch existing data from MapR-DB
     print("Fetching existing data from MapR-DB...")
@@ -93,9 +100,9 @@ def transfer_crypto_prices():
             json_docs = "\n".join([json.dumps(row.to_dict()) for _, row in batch_df.iterrows()])
             insert_cmd = f"echo '{json_docs}' | mapr dbshell -c 'insert into {mapr_table_path}'"
             os.system(insert_cmd)
-        print(" Data transfer complete.")
+        print("✅ Data transfer complete.")
     else:
-        print("ℹNo new data to insert.")
+        print("ℹ️ No new data to insert.")
 
 
 # Task to transfer data
