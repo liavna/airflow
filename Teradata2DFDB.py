@@ -2,7 +2,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 from datetime import timedelta
-import teradatasql
+from sqlalchemy import create_engine
 import pandas as pd
 import json
 import subprocess
@@ -47,13 +47,18 @@ def transfer_crypto_prices():
     mapr_table_path = f"/mapr/{mapr_db_name}/{mapr_table}"
     unique_date_column = "last_updated"  # Ensuring last_updated is used
 
-    # 1. Connect to Teradata and fetch data
+    # 1. Connect to Teradata and fetch data using SQLAlchemy
     print("Connecting to Teradata...")
-    conn = teradatasql.connect(host=teradata_host, user=teradata_user, password=teradata_password)
-    query = f"SELECT * FROM {teradata_db}.{teradata_table};"
-    df = pd.read_sql(query, conn)
-    conn.close()
-    print(f"Fetched {len(df)} rows from Teradata.")
+    teradata_url = f"teradata://{teradata_user}:{teradata_password}@{teradata_host}/?DATABASE={teradata_db}"
+
+    try:
+        engine = create_engine(teradata_url)
+        df = pd.read_sql(f"SELECT * FROM {teradata_table};", con=engine)
+        engine.dispose()
+        print(f"Fetched {len(df)} rows from Teradata.")
+    except Exception as e:
+        print(f"Error connecting to Teradata: {e}")
+        return  # Exit the function on failure
 
     # 2. Check if MapR-DB table exists
     def check_table_exists():
@@ -72,6 +77,7 @@ def transfer_crypto_prices():
     print("Fetching existing data from MapR-DB...")
     fetch_existing_cmd = f"mapr dbshell -c 'find {mapr_table_path} --f json'"
     result = subprocess.run(fetch_existing_cmd, shell=True, capture_output=True, text=True)
+
     existing_data = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
     existing_df = pd.DataFrame(existing_data)
 
