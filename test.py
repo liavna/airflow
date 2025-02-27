@@ -132,7 +132,7 @@ define_access_control = {
 }
 
 with DAG(
-    'teradata_to_mysql_sync',
+    'test',
     default_args=default_args,
     description='test',
     schedule_interval='@daily',
