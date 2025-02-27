@@ -2,7 +2,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 from datetime import timedelta
-from sqlalchemy import create_engine
+import teradatasql
 import pandas as pd
 import json
 import subprocess
@@ -45,19 +45,18 @@ def transfer_crypto_prices():
     mapr_db_name = "CryptoDB"
     mapr_table = "CryptoPrices"
     mapr_table_path = f"/mapr/{mapr_db_name}/{mapr_table}"
-    unique_date_column = "last_updated"  # Ensuring last_updated is used
+    unique_date_column = "last_updated"
 
-    # 1. Connect to Teradata and fetch data using SQLAlchemy
+    # 1. Connect to Teradata and fetch data
     print("Connecting to Teradata...")
-    teradata_url = f"teradata://{teradata_user}:{teradata_password}@{teradata_host}/?DATABASE={teradata_db}"
-
     try:
-        engine = create_engine(teradata_url)
-        df = pd.read_sql(f"SELECT * FROM {teradata_table};", con=engine)
-        engine.dispose()
+        conn = teradatasql.connect(host=teradata_host, user=teradata_user, password=teradata_password)
+        query = f"SELECT * FROM {teradata_db}.{teradata_table};"
+        df = pd.read_sql(query, conn)
+        conn.close()
         print(f"Fetched {len(df)} rows from Teradata.")
     except Exception as e:
-        print(f"Error connecting to Teradata: {e}")
+        print(f" Error connecting to Teradata: {e}")
         return  # Exit the function on failure
 
     # 2. Check if MapR-DB table exists
@@ -67,11 +66,11 @@ def transfer_crypto_prices():
 
     # 3. Create table if it doesn't exist
     if not check_table_exists():
-        print(f"Table {mapr_table} does not exist. Creating...")
+        print(f" Table {mapr_table} does not exist. Creating...")
         create_table_cmd = ["maprcli", "table", "create", "-path", mapr_table_path, "-tabletype", "json"]
         subprocess.run(create_table_cmd, check=True)
     else:
-        print(f"Table {mapr_table} already exists.")
+        print(f" Table {mapr_table} already exists.")
 
     # 4. Fetch existing data from MapR-DB
     print("Fetching existing data from MapR-DB...")
@@ -85,17 +84,18 @@ def transfer_crypto_prices():
     if unique_date_column in df.columns and not existing_df.empty:
         df = df[~df[unique_date_column].isin(existing_df[unique_date_column])]
 
-    # 6. Insert new rows into MapR-DB
+    # 6. Insert new rows into MapR-DB in batches
     if not df.empty:
-        print(f"Inserting {len(df)} new rows into MapR-DB...")
-        for _, row in df.iterrows():
-            json_doc = json.dumps(row.to_dict())
-            insert_cmd = f"echo 'insert into {mapr_table_path} values {json_doc}' | mapr dbshell"
+        print(f"🚀 Inserting {len(df)} new rows into MapR-DB...")
+        batch_size = 100  # Adjust batch size as needed for large datasets
+        for i in range(0, len(df), batch_size):
+            batch_df = df.iloc[i:i+batch_size]
+            json_docs = "\n".join([json.dumps(row.to_dict()) for _, row in batch_df.iterrows()])
+            insert_cmd = f"echo '{json_docs}' | mapr dbshell -c 'insert into {mapr_table_path}'"
             os.system(insert_cmd)
+        print(" Data transfer complete.")
     else:
-        print("No new data to insert.")
-
-    print("Data transfer complete.")
+        print("ℹNo new data to insert.")
 
 
 # Task to transfer data
